@@ -113,7 +113,7 @@ and isodd {n:nat} .<2*n+1>.
 Note the tuple lengths for the mutually recursive funtions must be the same.
 
 # Dataprops
-In the ATS statics language, the built-in sort *prop* is for static terms that represent proofs. For instance, a prop construct `FIB` can be defined:
+In the ATS statics language, the built-in sort *prop* is for static terms that represent proofs and relations between variables. For instance, a prop construct `FIB` can be defined:
 ```
 dataprop FIB (int, int) =
   | FIB0 (0, 0) // of ()
@@ -121,6 +121,11 @@ dataprop FIB (int, int) =
   | {n:nat} {r0, r1: nat} FIB2 (n+2, r0+r1) of (FIB(n, r0), FIB(n+1, r1))
 ```
 The sort of `FIB` is `(int, int) -> prop`. The proof value of the prop `FIB(n, r)` can be constructed if and only if `r` is the `n`th fibonnaci number.
+
+Note that there is also a keyword `absprop` which is similar to `abst@ype`. For example, to forward declar the relation `FIB`:
+```
+absprop FIB (int, int)
+```
 
 # Proof Functions
 Consider this dataprop:
