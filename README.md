@@ -122,6 +122,62 @@ dataprop FIB (int, int) =
 ```
 The sort of `FIB` is `(int, int) -> prop`. The proof value of the prop `FIB(n, r)` can be constructed if and only if `r` is the `n`th fibonnaci number.
 
+# Proof Functions
+Consider this dataprop:
+```
+dataprop MUL (int, int, int) =
+  | {n:int} MULbas (0, n, 0) of ()
+  | {m:nat} {n:int} {p:int}
+    MULind (m+1, n, p+n) of MUL (m, n, p)
+  | {m:pos} {n:int} {p:int}
+    MULneg (~m, n, ~p) of MUL (m, n, p)
+```
+and this interface for a proof function:
+```
+prfun mut_istot {m,n:int} (): [p:int] MUL (m, n, p)
+```
+`mut_istot` has the following prop that states that integer multiplication is a total function:
+```
+{m,n:int} () -<prf> [p:int] MUL (m, n, p)
+```
+`mut_istot` can be implemented as:
+```
+implement mul_istot {m,n} () = let
+  prfun istot
+    {m:nat;n:int} .<m>. (): [p:int] MUL (m, n, p) =
+    sif m > 0 then MULind (istot {m-1,n} ()) else MULbas ()
+in
+  sif m >= 0 then istot {m,n} () else MULneg (istot {~m,n} ())
+end
+```
+Another example is `mul_isfun` which encodes that multiplication is a function:
+```
+prfn mul_isfun {m,n:int} {p1,p2:int}
+  (pf1: MUL (m, n, p1), pf2: MUL (m, n, p2)) : [p1==p2] void = let
+
+  prfun isfun {m:nat;n:int} {p1,p2:int} .<m>.
+    (pf1: MUL (m, n, p1), pf2: MUL (m, n, p2)) : [p1==p2] void =
+    case+ pf1 of
+    | MULind (pf1prev) => let
+        prval MULind (pf2prev) = pf2
+      in
+        isfun (pf1prev, pf2prev)
+      end
+    | MULbas () => let
+        prval MULbas () = pf2
+      in
+        ()
+      end
+
+in
+  case+ pf1 of
+  | MULneg (pf1nat) => let
+      prval MULneg (pf2nat) = pf2 in isfun (pf1nat, pf2nat)
+    end
+  | _ =>> isfun (pf1, pf2)
+end
+```
+Note: `prfn` is used because the function is not recursive.
 # Datasort
 Datasorts in the statics are analogous to datatypes in ATS dynamics. For example, to represent a binary tree in the statics:
 ```
@@ -141,7 +197,7 @@ dataprop HT (tree, int) =
     HTB(B(tl, tr), 1+max(hl, hr)) of (HT(tl, hl), HT(tr, hr))
 ```
 
-# Proof Functions
+## Example: Proof functions for tree height
 Take the following dataprop encoding the power function:
 ```
 dataprop POW2 (int, int) =
@@ -172,7 +228,7 @@ prfun pow2_inc
 ```
 Here `pow2_istot` shows the `POW2` relation is total; `pow2_pos` proves the power of each natural number is positive; `pow2_inc` establishes that the power function is increasing.
 
-Now, the proof function `lemma_tree_size_height` can have the signature:
+Now, the proof function `lemma_tree_size_height`, for the `tree` datasort defined earlier, can have the signature:
 ```
 extern
 prfun lemma_tree_size_height
@@ -203,3 +259,70 @@ lemma_tree_size_height(pf1, pf2, pf3) =
     in end
 ```
 The termination metric for `lemma` corresponds to a proof based on structural induction. The keyword `scase` is used for static terms as `case` is for dynamic terms. Likewise, `sif` is used for static terms as `if` is used for dynamic terms.
+# Sequentiality of Pattern Matching
+Consider the function:
+```
+fun{a1,a2:t@ype}{b:t@ype}
+list_zipwith {n:nat}
+  (xs1: list (a1, n), xs2: list (a2, n), f: (a1, a2) -<cloref1> b)
+  : list (b, n) =
+  case+ (xs1, xs2) of
+  | (list_cons (x1, xs1), list_cons (x2, xs2)) =>
+      list_cons (f (x1, x2), list_zipwith (xs1, xs2, f))
+  | (_, _) => list_nil ()
+```
+This does not typecheck. To make it typecheck, the second clause must be modified to:
+```
+  | (_, _) =>> list_nil()
+```
+With `=>>` the typechecker will assume that the clause must be typechecked under the sequentiality of the pattern matching, which is more expensive. Because the previous case handles the case where `(xs1, xs2)` are not empty, and because they both must have the same length, the type checker can infer that the last clause must only match `(list_nil(), list_nil())`.
+
+Note there also exists `=/=>` which is a keyword that indicates to the typechecker of ATS that the involved clause of pattern matching is unreachable. On the right hand side of the clause the programmer must establish the falsehood.
+# Circumventing Nonlinear Constraints
+Consider this list concat function:
+```
+fun{a:t@ype} list_concat {m,n:nat}
+  (xss: list (list (a, n), m)): list (a, m * n) =
+  case+ xss of
+  | list_cons (xs, xss) => list_append<a> (xs, list_concat xss)
+  | list_nil () => list_nil ()
+```
+This function doesn't type check because ATS cannot solve a nonlinear constraint involving multiplication of static variables. This implementation fixes the issue:
+```
+fun{a:t@ype} list_concat {m,n:nat}
+  (xss: list (list (a, n), m)) : [p:nat] (MUL (m, n, p) | list (a, p)) =
+  case+ xss of
+  | list_cons (xs, xss) => let
+      val (pf | res) = list_concat (xss)
+    in
+      (MULind pf | list_append<a> (xs, res))
+    end
+  | list_nil () => (MULbas () | list_nil ())
+```
+Here `list_concat` returns a pair `(pf|res)` such that pf is a proof of the prop-type `MUL(m,n,p)` for some natural number p and the symbol `|` is used to separate proof from values. Here `pf` acts as a witness to the equality `p=m*n`.
+# Stamping
+Consider this abstract type constructor `E`:
+```
+sortdef elt = int // [elt] is just an alias for [int]
+abst@ype E (a:t@ype, x:elt) = a // [x] is an imaginary stamp
+```
+The stamp `x` is imaginary and is solely used for the purpose of specification.
+# Axioms
+Consider this abstract prop-type MUL and a function template mul_elt_elt
+```
+absprop MUL (elt, elt, elt) // abstract mul relation
+
+fun{a:t@ype}
+mul_elt_elt {x,y:elt}
+  (x: E (a, x), y: E (a, y)): [xy:elt] (MUL (x, y, xy) | E (a, xy))
+```
+The following can be used to take multiplication being associative as an axion:
+```
+praxi mul_assoc
+  {x,y,z:elt} {xy,yz:elt} {xy_z,x_yz:elt} (
+  pf1: MUL (x, y, xy), pf2: MUL (xy, z, xy_z)
+, pf3: MUL (y, z, yz), pf4: MUL (x, yz, x_yz)
+) : [xy_z==x_yz] void
+```
+Because it is specified with `praxi`, it does not need to be implemented.
+
