@@ -73,6 +73,10 @@ be thought of as a proof.
 accepts prop value arguments and returns a prop value. It can be 
 parameterized on sorts (and normally is).
 
+- *proof axiom* - A function declared with the *praxi* keyword, which 
+makes it an axiom, which does not have to be, and cannot be implemented. 
+It can be parameterized on sorts (and normally is).
+
 # Polymorphism
 Polymorphism is accomplished at ATS by paramaterizing over sorts.
 
