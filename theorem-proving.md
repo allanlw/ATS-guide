@@ -62,6 +62,12 @@ For functions, the same can be done. For instance, the following is a type for a
 ```
 Here `{i:int}` means universal quantification over a static variable i of the sort `int` and the scope of this quantification is the function type following.
 
+An example function header using existential quantification:
+```
+prfun mul_istot {m,n:int} (): [p:int] MUL (m, n, p)
+```
+Note that if the `[p:int]` term has a `#` placed before it, its terms will be referencable inside of the function.
+
 # Dependent Datatypes
 The syntax for declaring dependent datatypes is similar to the regular datatype declaration syntax:
 ```
