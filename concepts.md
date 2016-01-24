@@ -1,7 +1,8 @@
 # ATS - Turtles All The Way Down
 
 - *sort* - A sort is the most basic concept in ATS. The statics of ATS 
-is a simply-typed language, and the types in this language are called 
+is a simply-typed language (thus, there is no recursion in the static of
+ATS), and the types in this language are called 
 *sorts*. Some example sorts include `bool`, `int`, `type`, `t@ype`, and 
 `prop`, which are used to represent static terms of boolean values, 
 integer values, boxed types, unboxed types and proofs, respectively. 
@@ -11,7 +12,7 @@ int`.
 ## Examples of sorts
 - *datasort* - A user-defined sort that is associated with a number of 
 data sort constructors, which store static values. Cannot be 
-paramterized with static values. Contrast with *datasort* and 
+paramterized with static values. Contrast with *datatype* and 
 *dataprop*.
 
 - *type* and *t@ype* - A type is a very specific form of static values 
@@ -19,7 +20,7 @@ of the sort `type` or `t@ype`. Types are used in the ATS dynamic
 language (the main ats language, _per se_).
 
 - *prop* - A prop is a specific form of static value that represents a 
-type of a proof. They are similar to types, but are instantiated at 
+type of a proof. They are similar to types, but are not instantiated at 
 compile time.
 
 - *view* - used for representing static terms representing memory views.
